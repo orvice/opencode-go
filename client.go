@@ -165,10 +165,12 @@ func NewClient(opts ...Option) (*Client, error) {
 func (c *Client) BaseURL() string { return c.baseURL.String() }
 
 // newRequest builds an *http.Request for the given API path. The path must
-// begin with "/" and already be escaped where needed.
+// begin with "/" and contain raw (unescaped) segments; it is assigned to
+// URL.Path, so net/url handles percent-encoding when the request is sent.
 func (c *Client) newRequest(ctx context.Context, method, path string, query url.Values, body any) (*http.Request, error) {
 	u := *c.baseURL
 	u.Path = strings.TrimSuffix(u.Path, "/") + path
+	u.RawPath = ""
 
 	q := u.Query()
 	if c.directory != "" {
@@ -178,8 +180,9 @@ func (c *Client) newRequest(ctx context.Context, method, path string, query url.
 		q.Set("workspace", c.workspace)
 	}
 	for k, vs := range query {
+		q.Del(k)
 		for _, v := range vs {
-			q.Set(k, v)
+			q.Add(k, v)
 		}
 	}
 	u.RawQuery = q.Encode()

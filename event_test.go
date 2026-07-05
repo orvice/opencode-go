@@ -87,6 +87,45 @@ func TestEventStreamContextCancel(t *testing.T) {
 	}
 }
 
+func TestEventStreamCloseDuringNext(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		f := w.(http.Flusher)
+		fmt.Fprint(w, "data: {\"id\":\"1\",\"type\":\"server.connected\",\"properties\":{}}\n\n")
+		f.Flush()
+		<-r.Context().Done()
+	}))
+
+	stream, err := c.Event.Subscribe(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stream.Next() {
+		t.Fatalf("expected first event, err = %v", stream.Err())
+	}
+
+	// Close from another goroutine while Next is blocked; this must unblock
+	// Next and must not race (run with -race).
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		stream.Close()
+	}()
+	done := make(chan struct{})
+	go func() {
+		for stream.Next() {
+		}
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stream did not terminate after Close")
+	}
+	if err := stream.Err(); err != nil {
+		t.Errorf("Err() after Close = %v, want nil", err)
+	}
+}
+
 func TestGlobalEventStream(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/global/event" {

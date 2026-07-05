@@ -14,7 +14,7 @@ type SessionService struct {
 }
 
 func sessionPath(sessionID string, rest ...string) string {
-	parts := append([]string{"/session", url.PathEscape(sessionID)}, rest...)
+	parts := append([]string{"/session", sessionID}, rest...)
 	return strings.Join(parts, "/")
 }
 
@@ -274,7 +274,7 @@ const (
 func (s *SessionService) RespondToPermission(ctx context.Context, sessionID, permissionID string, response PermissionResponse) (bool, error) {
 	body := map[string]PermissionResponse{"response": response}
 	var out bool
-	err := s.client.do(ctx, http.MethodPost, sessionPath(sessionID, "permissions", url.PathEscape(permissionID)), nil, body, &out)
+	err := s.client.do(ctx, http.MethodPost, sessionPath(sessionID, "permissions", permissionID), nil, body, &out)
 	return out, err
 }
 
@@ -305,7 +305,7 @@ func (s *SessionService) Messages(ctx context.Context, sessionID string, params 
 // Message returns a single message with its parts.
 func (s *SessionService) Message(ctx context.Context, sessionID, messageID string) (*MessageWithParts, error) {
 	var out MessageWithParts
-	err := s.client.do(ctx, http.MethodGet, sessionPath(sessionID, "message", url.PathEscape(messageID)), nil, nil, &out)
+	err := s.client.do(ctx, http.MethodGet, sessionPath(sessionID, "message", messageID), nil, nil, &out)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +315,7 @@ func (s *SessionService) Message(ctx context.Context, sessionID, messageID strin
 // DeleteMessage deletes a message from a session.
 func (s *SessionService) DeleteMessage(ctx context.Context, sessionID, messageID string) (bool, error) {
 	var out bool
-	err := s.client.do(ctx, http.MethodDelete, sessionPath(sessionID, "message", url.PathEscape(messageID)), nil, nil, &out)
+	err := s.client.do(ctx, http.MethodDelete, sessionPath(sessionID, "message", messageID), nil, nil, &out)
 	return out, err
 }
 

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sync"
 )
 
 // Event type constants for the most common bus events. The full set of
@@ -142,8 +143,30 @@ type Stream[T any] struct {
 	resp    *http.Response
 	scanner *bufio.Scanner
 	cur     T
-	err     error
-	closed  bool
+
+	mu     sync.Mutex
+	err    error
+	closed bool
+}
+
+func (s *Stream[T]) isClosed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
+func (s *Stream[T]) getErr() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.err
+}
+
+func (s *Stream[T]) setErr(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err == nil {
+		s.err = err
+	}
 }
 
 func newStream[T any](resp *http.Response) *Stream[T] {
@@ -153,16 +176,18 @@ func newStream[T any](resp *http.Response) *Stream[T] {
 }
 
 // Next advances to the next event. It blocks until an event arrives, the
-// stream ends, or the request context is cancelled.
+// stream ends, or the request context is cancelled. Close may be called
+// from another goroutine to unblock Next; Next and Current themselves must
+// not be called concurrently.
 func (s *Stream[T]) Next() bool {
-	if s.err != nil || s.closed {
+	if s.getErr() != nil || s.isClosed() {
 		return false
 	}
 	var data []byte
 	emit := func() bool {
 		var v T
 		if err := json.Unmarshal(data, &v); err != nil {
-			s.err = err
+			s.setErr(err)
 			return false
 		}
 		s.cur = v
@@ -186,8 +211,8 @@ func (s *Stream[T]) Next() bool {
 			// Ignore other SSE fields (event:, id:, retry:) and comments.
 		}
 	}
-	if err := s.scanner.Err(); err != nil && !s.closed {
-		s.err = err
+	if err := s.scanner.Err(); err != nil && !s.isClosed() {
+		s.setErr(err)
 		return false
 	}
 	if len(data) > 0 {
@@ -202,6 +227,8 @@ func (s *Stream[T]) Current() T { return s.cur }
 // Err returns the error that ended the stream, if any. A nil return after
 // Next returns false means the stream ended normally (or was closed).
 func (s *Stream[T]) Err() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed {
 		return nil
 	}
@@ -209,11 +236,15 @@ func (s *Stream[T]) Err() error {
 }
 
 // Close terminates the stream and releases the underlying connection.
+// It is safe to call Close from another goroutine while Next is blocked.
 func (s *Stream[T]) Close() error {
+	s.mu.Lock()
 	if s.closed {
+		s.mu.Unlock()
 		return nil
 	}
 	s.closed = true
+	s.mu.Unlock()
 	return s.resp.Body.Close()
 }
 

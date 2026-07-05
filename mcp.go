@@ -53,12 +53,12 @@ func (s *MCPService) Add(ctx context.Context, name string, config MCPConfig) (ma
 
 // Connect connects a configured MCP server.
 func (s *MCPService) Connect(ctx context.Context, name string) error {
-	return s.client.do(ctx, http.MethodPost, "/mcp/"+url.PathEscape(name)+"/connect", nil, nil, nil)
+	return s.client.do(ctx, http.MethodPost, "/mcp/"+name+"/connect", nil, nil, nil)
 }
 
 // Disconnect disconnects a configured MCP server.
 func (s *MCPService) Disconnect(ctx context.Context, name string) error {
-	return s.client.do(ctx, http.MethodPost, "/mcp/"+url.PathEscape(name)+"/disconnect", nil, nil, nil)
+	return s.client.do(ctx, http.MethodPost, "/mcp/"+name+"/disconnect", nil, nil, nil)
 }
 
 // LSPService accesses the /lsp endpoint.

@@ -58,19 +58,21 @@ func main() {
 		switch ev.Type {
 		case opencode.EventTypeMessagePartDelta:
 			var p opencode.EventMessagePartDeltaProperties
-			if err := ev.DecodeProperties(&p); err == nil && p.Field == "text" {
+			if err := ev.DecodeProperties(&p); err == nil && p.SessionID == sess.ID && p.Field == "text" {
 				fmt.Print(p.Delta)
 			}
 		case opencode.EventTypeSessionIdle:
-			fmt.Println()
-			return
+			var p opencode.EventSessionIdleProperties
+			if err := ev.DecodeProperties(&p); err == nil && p.SessionID == sess.ID {
+				fmt.Println()
+				return
+			}
 		case opencode.EventTypeSessionError:
 			var p opencode.EventSessionErrorProperties
 			ev.DecodeProperties(&p)
-			if p.Error != nil {
+			if p.SessionID == sess.ID && p.Error != nil {
 				log.Fatalf("session error: %s: %s", p.Error.Name, p.Error.Data.Message)
 			}
-			return
 		}
 	}
 	if err := stream.Err(); err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 )
 
 // ProviderService accesses the /provider endpoints.
@@ -63,7 +62,7 @@ type ProviderAuthAuthorization struct {
 // OAuthAuthorize starts an OAuth authorization for a provider.
 func (s *ProviderService) OAuthAuthorize(ctx context.Context, providerID string, params OAuthAuthorizeParams) (*ProviderAuthAuthorization, error) {
 	var out ProviderAuthAuthorization
-	err := s.client.do(ctx, http.MethodPost, "/provider/"+url.PathEscape(providerID)+"/oauth/authorize", nil, params, &out)
+	err := s.client.do(ctx, http.MethodPost, "/provider/"+providerID+"/oauth/authorize", nil, params, &out)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +78,7 @@ type OAuthCallbackParams struct {
 // OAuthCallback completes an OAuth authorization for a provider.
 func (s *ProviderService) OAuthCallback(ctx context.Context, providerID string, params OAuthCallbackParams) (bool, error) {
 	var out bool
-	err := s.client.do(ctx, http.MethodPost, "/provider/"+url.PathEscape(providerID)+"/oauth/callback", nil, params, &out)
+	err := s.client.do(ctx, http.MethodPost, "/provider/"+providerID+"/oauth/callback", nil, params, &out)
 	return out, err
 }
 
@@ -124,13 +123,13 @@ func WellKnownCredentials(key, token string) AuthCredentials {
 // Set stores credentials for a provider.
 func (s *AuthService) Set(ctx context.Context, providerID string, creds AuthCredentials) (bool, error) {
 	var out bool
-	err := s.client.do(ctx, http.MethodPut, "/auth/"+url.PathEscape(providerID), nil, creds, &out)
+	err := s.client.do(ctx, http.MethodPut, "/auth/"+providerID, nil, creds, &out)
 	return out, err
 }
 
 // Remove deletes the stored credentials of a provider.
 func (s *AuthService) Remove(ctx context.Context, providerID string) (bool, error) {
 	var out bool
-	err := s.client.do(ctx, http.MethodDelete, "/auth/"+url.PathEscape(providerID), nil, nil, &out)
+	err := s.client.do(ctx, http.MethodDelete, "/auth/"+providerID, nil, nil, &out)
 	return out, err
 }
